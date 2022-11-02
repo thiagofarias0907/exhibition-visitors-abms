@@ -1,17 +1,5 @@
 extensions [array]
 
-breed [visitors visitor]
-
-visitors-own[
-  visitorAge
-  interest
-  education
-  influence
-  visionRadius
-  isInteracting
-  interactionContent
-]
-
 breed [contents content]
 contents-own [
   strenghtLevel
@@ -20,7 +8,27 @@ contents-own [
   contentSubject
   knowleadgeDegree
   complexity
+  attractiveness
 ]
+
+breed [visitors visitor]
+visitors-own[
+  visitorAge
+  interest
+  education
+  influence
+  visionDistance
+  visionDegree
+  interactionInterval
+  isInteracting
+  interactionContent
+
+  ;; set of nearby visitors and contents
+  nearbyVisitors
+  nearbyContents
+  visitedContents
+]
+
 
 patches-own [
   blocked
@@ -55,6 +63,7 @@ to setup
     ]
 
     set strenghtLevel  0.1
+    set attractiveness random 100
     set interactionCategory "audiovisual"
     set contentCategory "movie"
     set contentSubject "dinosaurs"
@@ -74,8 +83,24 @@ to setup
   ;; set common visitors state
   ask visitors [
     set visitorAge age
-    set interest interestLevel + random 10 - random 10
-    set influence influenceLevel
+    set education escolaridade
+    set visionDistance visionDistanceLimit
+    set visionDegree visionDegreeLimit
+    set isInteracting false
+    set interactionContent nobody
+
+    ;; set random interval of interaction for each visitor
+    let dev  (random 30  - (30 / 2))
+    set interactionInterval averageInteractionInterval + dev
+
+    ;; set random interest  for each visitor
+    set dev (random 10  - (10 / 2)) / 10
+    set interest interestLevel + dev
+
+    ;; set random influence for each visitor
+    set dev (random 15  - (15 / 2)) / 15
+    set influence influenceLevel + dev
+
     set heading random 360
   ]
 
@@ -84,24 +109,73 @@ end
 
 to go
   ask visitors [
-    set heading heading + random -60 + random 60
+;    set heading heading + random -60 + random 60
 ;    show word patch-ahead 1 " : "
 ;    if [blocked] of patch-ahead 1 = false [
-      fd 1
+;      fd 1
 ;    ]
 ;    if any? contents-on patch-ahead 1 [
 ;;    if not [blocked] of patch-ahead 1 [
 ;      fd 1
 ;    ]
+    setNearbyVisitorsAndContent
+    whereToGo
+    fd 1
   ]
 
 end
 
+to setNearbyVisitorsAndContent
+  set nearbyVisitors other visitors in-radius visionDistance
+  set nearbyContents contents in-radius visionDistance
 
-to-report whereToGo
 end
 
-to-report attractiveContent
+to whereToGo
+  if any? nearbyVisitors [
+;    ask nearbyVisitors []    ;; to do someting
+  ]
+  if any? nearbyContents [
+    ;;if a content is nearby and is interesing, head to its direction
+    set heading towards attractiveContent xcor ycor;;agent position
+  ]
+
+  ;;if nothing is nearby, return a random heading
+  set heading heading + 10 * ( 10 - random 10)
+
+end
+
+;; Find the most attractive content
+to-report attractiveContent [x y]
+  let headToContent nobody
+  let maxAtt 0
+  if any? nearbyContents [
+
+;    show nearbyContents
+    ;; I DON'T THINK THIS WILL WORK
+    foreach (sort nearbyContents)  [
+      ncontent ->
+;        show distance myself
+      ifelse ([distancexy x y] of ncontent) = 0 [ ;; was using 'distance self' before
+          ;; update most attractive object
+          if [attractiveness] of ncontent > maxAtt [
+            set maxAtt [attractiveness] of ncontent
+            set headToContent  ncontent
+            print word "MaxAtt dist 0 " maxAtt
+          ]
+        ][
+          ;; attractiveness weighted by the distance to the agent
+          let att  [attractiveness] of ncontent * ( 1 - 1 / ([distancexy x y] of ncontent))
+          if  att > maxAtt [
+            set maxAtt att
+            set headToContent ncontent
+            print word "MaxAtt dist <> 0 " maxAtt
+          ]
+        ]
+
+    ]
+  ]
+  report headToContent
 end
 
 to interactionStep
