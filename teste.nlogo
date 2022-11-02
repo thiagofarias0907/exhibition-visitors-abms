@@ -47,11 +47,11 @@ to setup
   ]
 
   ;; set common content state
-  create-contents 20 [
+  create-contents contentNumber [
     set shape "box"
     set color random 13 * 10  + 5
     let xpos random-xcor
-    while [(xpos > -10) and (xpos  < 10)] [
+    while [(xpos > -5) and (xpos  < 5)] [
       set xpos random-xcor
     ]
     set xcor xpos
@@ -62,8 +62,14 @@ to setup
       set blocked true
     ]
 
+
+
+    ;; set random interest  for each visitor
+    let dev (random attractivenessMeanLevel  - (attractivenessMeanLevel / 2))
+    set attractiveness attractivenessMeanLevel + dev
+;    set attractiveness random 100
+
     set strenghtLevel  0.1
-    set attractiveness random 100
     set interactionCategory "audiovisual"
     set contentCategory "movie"
     set contentSubject "dinosaurs"
@@ -141,12 +147,14 @@ to whereToGo
 ;    ask nearbyVisitors []    ;; to do someting
   ]
   if any? nearbyContents [
+
     ;;if a content is nearby and is interesing, head to its direction
     set heading towards attractiveContent xcor ycor;;agent position
+
   ]
 
   ;;if nothing is nearby, return a random heading
-  set heading heading + 10 * ( 5 - random 10)
+  set heading heading + 18 * ( 5 - random 10)
 
 end
 
@@ -155,37 +163,45 @@ to-report attractiveContent [x y]
   let headToContent nobody
   let maxAtt 0
   if any? nearbyContents [
-
 ;    show nearbyContents
-    ;; I DON'T THINK THIS WILL WORK
     foreach (sort nearbyContents)  [
       ncontent ->
 ;        show distance myself
       ifelse ([distancexy x y] of ncontent) = 0 [ ;; was using 'distance self' before
-          ;; update most attractive object
-          if [attractiveness] of ncontent > maxAtt [
-            set maxAtt [attractiveness] of ncontent
-            set headToContent  ncontent
-;            print word "MaxAtt dist 0 " maxAtt
-          ]
-        ][
-          ;; attractiveness weighted by the distance to the agent
-          let att  [attractiveness] of ncontent * ( 1 - 1 / ([distancexy x y] of ncontent) )
-
-          ;; already visited discount
-;          if position ncontent nearbyContents != false [
-          if member? ncontent nearbyContents [
-            set att att * 0.1
-          ]
-
-          if  att > maxAtt [
-            set maxAtt att
-            set headToContent ncontent
-;            print word "MaxAtt dist <> 0 " maxAtt
-          ]
+        let att [attractiveness] of ncontent
+        ;; already visited discount
+        if member? ncontent visitedContents [
+          set att att * ( 1 - visitedDiscountFactor)
         ]
 
+        ;; update most attractive object
+        if att > maxAtt [
+          set maxAtt att
+          set headToContent  ncontent
+;            print word "MaxAtt dist 0 " maxAtt
+        ]
+      ][
+        ;; attractiveness weighted by the distance to the agent
+        let att  [attractiveness] of ncontent * ( 1 - 1 / ([distancexy x y] of ncontent) )
+
+        ;; already visited discount
+        if member? ncontent visitedContents [
+          set att att * ( 1 - visitedDiscountFactor)
+        ]
+
+        if  att > maxAtt [
+          set maxAtt att
+          set headToContent ncontent
+;            print word "MaxAtt dist <> 0 " maxAtt
+        ]
+      ]
+
     ]
+  ]
+
+  ;; in case nobody, use the most attractive content
+  if headToContent = nobody [
+    set headToContent max-one-of nearbyContents [attractiveness]
   ]
   report headToContent
 end
@@ -193,7 +209,7 @@ end
 to interactionStep
   if any? nearbyContents [
     let nearestContent min-one-of nearbyContents [distance myself]
-    if ([distance myself] of nearestContent) <= 5 [
+    if ([distance myself] of nearestContent) <= 1 [
       set visitedContents lput nearestContent visitedContents ;; adds a content at the end of the list
     ]
   ]
@@ -353,11 +369,52 @@ visionDistanceLimit
 visionDistanceLimit
 0
 100
-11.0
+4.0
 1
 1
 NIL
 HORIZONTAL
+
+SLIDER
+105
+317
+277
+350
+visitedDiscountFactor
+visitedDiscountFactor
+0
+1
+0.994
+0.001
+1
+NIL
+HORIZONTAL
+
+SLIDER
+105
+353
+278
+386
+attractivenessMeanLevel
+attractivenessMeanLevel
+0
+100
+20.0
+1
+1
+NIL
+HORIZONTAL
+
+INPUTBOX
+4
+159
+94
+219
+contentNumber
+50.0
+1
+0
+Number
 
 @#$#@#$#@
 ## WHAT IS IT?
