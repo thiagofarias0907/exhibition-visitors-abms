@@ -47,7 +47,7 @@ to setup
   ]
 
   ;; set common content state
-  create-contents 10 [
+  create-contents 20 [
     set shape "box"
     set color random 13 * 10  + 5
     let xpos random-xcor
@@ -101,6 +101,10 @@ to setup
     set dev (random 15  - (15 / 2)) / 15
     set influence influenceLevel + dev
 
+    ;; set visitedContents
+;    set visitedContents nobody
+    set visitedContents []
+
     set heading random 360
   ]
 
@@ -121,6 +125,7 @@ to go
     setNearbyVisitorsAndContent
     whereToGo
     fd 1
+    interactionStep
   ]
 
 end
@@ -141,7 +146,7 @@ to whereToGo
   ]
 
   ;;if nothing is nearby, return a random heading
-  set heading heading + 10 * ( 10 - random 10)
+  set heading heading + 10 * ( 5 - random 10)
 
 end
 
@@ -161,15 +166,22 @@ to-report attractiveContent [x y]
           if [attractiveness] of ncontent > maxAtt [
             set maxAtt [attractiveness] of ncontent
             set headToContent  ncontent
-            print word "MaxAtt dist 0 " maxAtt
+;            print word "MaxAtt dist 0 " maxAtt
           ]
         ][
           ;; attractiveness weighted by the distance to the agent
-          let att  [attractiveness] of ncontent * ( 1 - 1 / ([distancexy x y] of ncontent))
+          let att  [attractiveness] of ncontent * ( 1 - 1 / ([distancexy x y] of ncontent) )
+
+          ;; already visited discount
+;          if position ncontent nearbyContents != false [
+          if member? ncontent nearbyContents [
+            set att att * 0.1
+          ]
+
           if  att > maxAtt [
             set maxAtt att
             set headToContent ncontent
-            print word "MaxAtt dist <> 0 " maxAtt
+;            print word "MaxAtt dist <> 0 " maxAtt
           ]
         ]
 
@@ -179,11 +191,16 @@ to-report attractiveContent [x y]
 end
 
 to interactionStep
+  if any? nearbyContents [
+    let nearestContent min-one-of nearbyContents [distance myself]
+    if ([distance myself] of nearestContent) <= 5 [
+      set visitedContents lput nearestContent visitedContents ;; adds a content at the end of the list
+    ]
+  ]
 end
 
 to endInteraction
 end
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 301
@@ -336,7 +353,7 @@ visionDistanceLimit
 visionDistanceLimit
 0
 100
-50.0
+11.0
 1
 1
 NIL
