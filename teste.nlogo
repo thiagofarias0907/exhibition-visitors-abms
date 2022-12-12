@@ -1,26 +1,21 @@
 extensions [array csv]
 
-globals [visitorsTotal contentsList contentsListName contentsListCategory contentsListSubjects contentsListTypeOfInteractions walking interacting exited]
+globals [
+  visitorsTotal
+  contentsList
+  contentsListName
+  contentsListCategory
+  contentsListSubjects
+  contentsListTypeOfInteractions
+  contentsListAttractiveness
+  walking
+  interacting
+  exited]
 
 breed [walls wall]
 
 ;; the exhibt content breed
 breed [contents content]
-
-
-;contents-own [
-;  name
-;  strenghtLevel
-;  interactionCategory
-;  contentCategory
-;  contentSubject
-;  knowleadgeDegree
-;  complexity
-;  attractiveness
-;  maxNumberOfVisitors
-;  numberOfVisitorsNow
-;  visitorsQueue
-;]
 
 breed [visitors visitor]
 visitors-own[
@@ -35,6 +30,7 @@ visitors-own[
   visionDegree
   interactionInterval
   isInteracting
+  movingToContent
   interactionContent
 
   ;; set of nearby visitors and contents
@@ -149,48 +145,6 @@ to-report getContentMatchTagValue[nameValue tag]
   report "Not found"
 end
 
-;to-report getContentValue[tag contentAsList]
-;  if tag = "content"[
-;    report 0 item contentAsList
-;  ]	
-;  if tag = "subject"[
-;    report 0 item contentAsList
-;  ]	
-;  if tag = "interaction"[
-;    report 0 item contentAsList
-;  ]	
-;  if tag = "knowledge"[
-;    report 0 item contentAsList
-;  ]	
-;  if tag = "complexity"[
-;    report 0 item contentAsList
-;  ]	
-;  if tag = "strength_level"[
-;    report 0 item contentAsList
-;  ]	
-;  if tag = "number_visitors_per_cell"[
-;    report 0 item contentAsList
-;  ]	
-;  if tag = "rgb_color"[
-;    report 0 item contentAsList
-;  ]
-;  repor ""
-;end
-
-;to-report getContentName [contentAsList]
-;  report item 0 contentAsList
-;end
-;
-;
-;to-report getContentCategory [contentAsList]
-;  report item 1 contentAsList
-;end
-;
-;to-report getContentSubject [contentAsList]
-;  report item 3 contentAsList
-;end
-;
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;   DRAW THE MAP BY THE CSV FILE WITH DATA IN PATTERN   ;;
@@ -230,7 +184,9 @@ to drawMap
                    if-else cellValue = 99 [
                      ask patch x y [set isExit true]
                    ][
-                     ask patch x y [set name cellValue]
+                     ask patch x y [
+                       set name cellValue
+                    ]
                    ]
                  ]
               ]
@@ -255,16 +211,12 @@ to loadContents
  set contentsListCategory (list)
  set contentsListSubjects (list)
  set contentsListTypeOfInteractions (list)
+ set contentsListAttractiveness (list)
  foreach (csv:from-file "contents.csv" ";") [
     contentRow ->
-;      show contentRow
       set contentsList lput contentRow contentsList
-;      let contentValues contentRow
-;      set contentsList lput contentValues contentsList
       let contentValue item 0 contentRow
       set contentsListName lput contentValue contentsListName
-;      set contentsColor lput
-
       set contentValue item 1 contentRow
       set contentsListCategory lput contentValue contentsListCategory
       set contentValue item 2 contentRow
@@ -272,11 +224,12 @@ to loadContents
       set contentValue item 3 contentRow
       set contentsListTypeOfInteractions lput contentValue contentsListTypeOfInteractions
 
+      ;; add a random attractiveness for each content patch
+      let dev (random attractivenessMeanLevel  - (attractivenessMeanLevel / 2))
+      set contentsListAttractiveness lput (attractivenessMeanLevel + dev) contentsListAttractiveness
+
  ]
 
-; show contentsList
-; foreach read-from-string contentsList [ c -> set contentsListName lput c contentsListName ]
-; show contentsListName
 end
 
 
@@ -291,57 +244,6 @@ to setup
 
  drawMap
 
- ;; set the contents by the input
-
-;  ask patches [
-;;    if-else count contents > 0 [
-;;      set blocked true
-;;    ][ set blocked false]
-;    set pcolor 89
-;  ]
-
-  ;; set common content state
-;  create-contents contentNumber [
-;    set shape "box"
-;    set color random 13 * 10  + 5
-;    let xpos random-xcor
-;    while [(xpos > -5) and (xpos  < 5)] [
-;      set xpos random-xcor
-;    ]
-;    set xcor xpos
-;    set ycor random-ycor
-;    set size 1
-;
-;    ask patch xcor ycor[
-;      set blocked true
-;    ]
-
-
-    ;; set random interest  for each visitor
-;    let dev (random attractivenessMeanLevel  - (attractivenessMeanLevel / 2))
-;    set attractiveness attractivenessMeanLevel + dev
-;;    set attractiveness random 100
-;
-;    set strenghtLevel  0.1
-;    set interactionCategory "audiovisual"
-;    set contentCategory "movie"
-;    set contentSubject "dinosaurs"
-;    set knowleadgeDegree "basic"
-;    set complexity "low"
-;  ]
-;  ask contents [
-;
-;  ]
-
-;  ;; create visitors
-;  create-visitors numberOfVisitors [
-;    set shape "person"
-;    move-to one-of patches with [isEntrance]
-;  ]
-;
-;  ;; set common visitors state
-;  ask visitors [
-;  ]
 
   reset-ticks
 end
@@ -352,18 +254,20 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;;
 to createAndSetVisitor
 
-    ;; randomly setting a link to another visitor at entrance
-    let createRandom random 100
-    if createRandom < 20 [
-      let linkedVisitor [who] of (one-of visitors-here)
-      if linkedVisitor != [who] of self [
-;        move-to visitor linkedVisitor
-        set ycor ([ycor] of visitor linkedVisitor )
-        create-link-with visitor linkedVisitor [tie]
-      ]
-    ]
+;    ;; randomly setting a link to another visitor at entrance
+;    let createRandom random 100
+;    if createRandom < 20 [
+;      let linkedVisitor [who] of (one-of visitors-here)
+;      if linkedVisitor != [who] of self [
+;;        move-to visitor linkedVisitor
+;        set ycor ([ycor] of visitor linkedVisitor )
+;        create-link-with visitor linkedVisitor [tie]
+;      ]
+;    ]
 
-    set visitorAge age
+
+;    set shape "person"
+
     set education escolaridade
     set visionDistance visionDistanceLimit
     set visionDegree visionDegreeLimit
@@ -378,6 +282,10 @@ to createAndSetVisitor
     set dev (random 10  - (10 / 2)) / 10
     set interest interestLevel + dev
 
+    ;; set random age for each visitor
+    set dev (random 10  - (10 / 2)) / 10
+    set visitorAge meanAge + dev
+
     ;; random interests to score time of interaction
     set mostInterestCategory one-of remove-duplicates contentsListCategory
     set mostInterestSubject one-of remove-duplicates contentsListSubjects
@@ -390,14 +298,19 @@ to createAndSetVisitor
     ;; set visitedContents
     set visitedContents []
 
+
     ;; set time
     set interactionStart 0
     set interactionDuration 0
     set visitDuration 0
     set contentsInteractionDuration n-values length contentsListName [0]
 
-
+    ;; directions control
+    set movingToContent false
     changeDirection
+
+
+
 end
 
 
@@ -405,10 +318,13 @@ end
 ;;   GO LOOP   ;;
 ;;;;;;;;;;;;;;;;;
 to go
-  if visitorsTotal <  numberOfVisitors [
+
+  if (visitorsTotal <  numberOfVisitors) and (remainder ticks 30 = 0) [  ;; add a remainder to slow the number of entrance
     let entrancePatchesCount count patches with [isEntrance]
     let visitorsPerPatch 3
-    ask patches with [isEntrance] [
+;    ask patches with [isEntrance] [
+    ask one-of patches with [isEntrance] [ ;; slow the number of
+
       if-else (numberOfVisitors - visitorsTotal) >= visitorsPerPatch [
         sprout-visitors visitorsPerPatch [
           createAndSetVisitor
@@ -426,22 +342,24 @@ to go
     ]
   ]
 
-  ;; set common visitors state
-  ask visitors [
-  ]
-
-
   ask visitors with [not [isExit] of patch-here ]  [
     setNearbyVisitorsAndContent
     interactionControl
     walk
-    updateNextContentQueue
   ]
+
+  set walking 0
+  ask patches with [contentId = "" or contentId = 0] [
+    set walking (walking + count turtles-here)
+  ]
+  set interacting count visitors with [isInteracting]
+
   set exited 0
   ask patches with [isExit] [
     set exited (exited + count turtles-here)
   ]
   if exited >= numberOfVisitors [ stop ]
+
   tick
 end
 
@@ -461,20 +379,40 @@ to walk
     if-else patch-ahead 1 = nobody [
       changeDirection
     ][
-      if-else [isBlocked] of patch-ahead 1[
-        changeDirection
+       if-else isInteracting [ ;; remain on the content's interaction area while is interacting
+        while [[name] of patch-ahead 1 != [name] of patch-here] [
+          changeDirection
+        ]
       ][
-        if-else isInteracting [
-          if [name] of patch-ahead 1 != [name] of patch-here [
-            changeDirection
-          ]
-        ][
+        ;; in case it's not interacting anymore, change it's heading content
+        whereToGo
+
+        if [isBlocked] of patch-ahead 1 [
           changeDirection
         ]
       ]
     ]
   ]
+
+
+  ;; add a step
   fd step
+
+  ;; control the path drawing of selected visitor
+  if (any? visitors with [ pen-mode = "down"]) and (not drawPathOfVisitor) [
+    set pen-mode "up"
+    pen-erase
+  ]
+  if (showPathOfVisitor != 0 ) and drawPathOfVisitor [
+    if ( visitor showPathOfVisitor != nobody) [
+      ask visitor showPathOfVisitor [
+        set pen-mode "down"
+        set pen-size 1
+      ]
+    ]
+  ]
+
+
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -508,7 +446,6 @@ to setNearbyVisitorsAndContent
   while [i < count  inradiusContent] [
     let block false
     ask inradiusContent [
-;      let c item i inradiusContent
       let d distance myself
 
       while [d > 0 and block = false] [
@@ -541,6 +478,7 @@ end
 to interactionControl
 
   if-else isInteracting [
+    set movingToContent false
 ;    show (word "t " ticks " start " interactionStart " exp " contentExpectedTime )
     if (ticks - interactionStart) >= contentExpectedTime [
       let pos (position (last visitedContents) contentsListName)
@@ -548,13 +486,23 @@ to interactionControl
       set contentsInteractionDuration replace-item pos contentsInteractionDuration (ticks - interactionStart + tempCount)
       set isInteracting false
       set interactionStart 0
+      set interactionContent nobody
     ]
   ][
     if not member? [contentId] of patch-here [-1 99 11 0 ""] [
+      if-else length visitedContents   > 0 [
+        if [contentId] of patch-here != last visitedContents [
+          set movingToContent false
+          set interactionStart ticks
+          set isInteracting true
+          set visitedContents lput [name] of patch-here visitedContents ;; adds a content's name at the end of the list
+        ]
+      ][
+        set movingToContent false
         set interactionStart ticks
         set isInteracting true
-
         set visitedContents lput [name] of patch-here visitedContents ;; adds a content's name at the end of the list
+      ]
     ]
   ]
 end
@@ -564,7 +512,15 @@ end
 ;;  CALCULATE THE TIME FOR THE CONTENT   ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 to-report contentExpectedTime
-  if [name] of patch-here = ""[
+  report interactionInterval * interactionBoostFactor
+end
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;  CALCULATES THE BOOST RATE FOR THE CONTENT   ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+to-report interactionBoostFactor
+    if [name] of patch-here = ""[
 
     report 0
   ]
@@ -580,59 +536,8 @@ to-report contentExpectedTime
     set boost boost + 0.3
   ]
 
-  report interactionInterval * interest * (1 + boost)
+  report 1 + boost
 end
-
-
-;;; random follow pair calc. Returns True if actor must go to it's pair position
-;to-report followPair
-;  report
-;
-
-;; content influence
-to-report contentInfluence
-  report 0
-end
-
-
-;; distance influence
-to-report ageInfluence
-  report 0
-end
-
-
-;; distance influence
-to-report distanceInfluence
-  report 0
-end
-
-
-
-;; pair influence
-to-report pairInfluence
-  report 0
-end
-
-
-
-;; nearby agent influence
-to-report othersInfluence
-  report 0
-end
-
-
-;; visited exhibits
-to-report visitedExhibits
-  report 0
-end
-
-
-;; set next to visit queue
-to-report updateQueueOfExhibtsToVisit
-  let queue (list 0 1 2)
-  report queue
-end
-
 
 ;; time spent
 to-report timeSpent
@@ -661,99 +566,127 @@ to-report averageTimeSpentOnExhibt [exhibt]
 end
 
 
+to whereToGo
+  if-else isInteracting  [
+    show "strange"
+;    fd 1
+    ;; do nothing
+  ][
+    if-else movingToContent [
 
-to updateNextContentQueue
+      ;; avoid aiming to the same content
+      if-else [contentId] of patch-here = [contentId] of interactionContent [
+        ;; set to none
+        set interactionContent nobody
+        set movingToContent false
+      ]
+      [
+
+        set heading towards interactionContent ;; keep it in case it's moving towards an already calculated most attractive content
+      ]
+    ][
+
+      if count nearbyContents > 0 [
+
+        ;;if a content is nearby and is interesing, head to its direction
+        set interactionContent attractiveContent xcor ycor;; relative to it's actual position
+        if interactionContent != nobody [
+          set heading towards interactionContent
+          set movingToContent true
+        ]
+
+      ]
+    ]
+  ]
 
 end
 
+;; Find the most attractive content
+to-report attractiveContent [x y]
 
-;to whereToGo
-;  if any? nearbyVisitors [
-;;    ask nearbyVisitors []    ;; to do someting
-;  ]
-;  if any? nearbyContents [
-;
-;    ;;if a content is nearby and is interesing, head to its direction
-;
-;    set heading towards attractiveContent xcor ycor;;agent position
-;
-;    while [patch-ahead 1 = isBlocked] [
-;      ;;if nothing is nearby, return a random heading
-;      set heading heading + 18 * ( 5 - random 10)
-;    ]
-;  ]
-;
-;  while [patch-ahead 1 = isBlocked] [
-;    ;; return a random heading
-;    set heading heading + 18 * ( 5 - random 10)
-;  ]
-;
-;end
+  let headToContent nobody
+  let maxAtt 0
 
-;;; Find the most attractive content
-;to-report attractiveContent [x y]
-;  let headToContent nobody
-;  let maxAtt 0
-;  if any? nearbyContents [
-;;    show nearbyContents
-;    foreach (sort nearbyContents)  [
-;      ncontent ->
-;;        show distance myself
-;      ifelse ([distancexy x y] of ncontent) = 0 [ ;; was using 'distance self' before
-;        let att [attractiveness] of ncontent
-;        ;; already visited discount
-;        if member? ncontent visitedContents [
-;          set att att * ( 1 - visitedDiscountFactor)
-;        ]
-;
-;        ;; update most attractive object
-;        if att > maxAtt [
-;          set maxAtt att
-;          set headToContent  ncontent
-;;            print word "MaxAtt dist 0 " maxAtt
-;        ]
-;      ][
-;        ;; attractiveness weighted by the distance to the agent
-;        let att  [attractiveness] of ncontent * ( 1 - 1 / ([distancexy x y] of ncontent) )
-;
-;        ;; already visited discount
-;        if member? ncontent visitedContents [
-;          set att att * ( 1 - visitedDiscountFactor)
-;        ]
-;
-;        if  att > maxAtt [
-;          set maxAtt att
-;          set headToContent ncontent
-;;            print word "MaxAtt dist <> 0 " maxAtt
-;        ]
-;      ]
-;
-;    ]
-;  ]
-;
-;  ;; in case nobody, use the most attractive content
-;  if headToContent = nobody [
-;    set headToContent max-one-of nearbyContents [attractiveness]
-;  ]
-;  report headToContent
-;end
+  ; only different ones
+  let filteredNearbyContent with [contentId != [contentId] of patch-here ] nearbyContents
 
-;to interactionStep
-;  if any? nearbyContents [
-;    let nearestContent min-one-of nearbyContents [distance myself]
-;    if ([distance myself] of nearestContent) <= 1 [
-;      set visitedContents lput nearestContent visitedContents ;; adds a content at the end of the list
-;    ]
-;  ]
-;end
+  if count nearbyContents > 0 [
+    foreach (sort filteredNearbyContent)  [ ;;sort used here was a trick in order to set an agentset as list
+      ncontent ->
 
-;to endInteraction
-;end
+      ;; get attractiveness from contentsListAttractiveness
+      let pos (position [name] of ncontent contentsListName)
+;      show (word pos " " [name] of ncontent " " contentsListName )
+      let baseAtt item pos contentsListAttractiveness
+      set baseAtt baseAtt * interactionBoostFactor
+
+;      show [distancexy x y] of ncontent
+      ifelse ([distancexy x y] of ncontent) = 0 [ ;; was using 'distance self' before
+        let att baseAtt
+
+        ;; same as the current
+        if-else ([contentId] of ncontent = last visitedContents)  [
+
+          ;;do nothing
+        ][
+          ;; already visited discount
+          if member? ([name] of ncontent) visitedContents [
+            set att att * ( 1 - visitedDiscountFactor)
+          ]
+
+          ;; update most attractive object
+          if att > maxAtt [
+            set maxAtt att
+            set headToContent  ncontent
+            print word "MaxAtt dist 0 " maxAtt
+          ]
+        ]
+
+;        show (word " d = 0 ncontent " ncontent " id " [contentId] of ncontent " visited " visitedContents " baseAtt " baseAtt  " att  " att  )
+      ][
+
+        let att baseAtt
+        ;; already visited discount
+        if member? ncontent visitedContents [
+          set att att * ( 1 - visitedDiscountFactor)
+
+        ]
+        ;; attractiveness weighted by the distance to the agent
+        set att  att  / ([distancexy x y] of ncontent)
+
+        if  att > maxAtt [
+          set maxAtt att
+          set headToContent ncontent
+;          print word "MaxAtt dist <> 0 " maxAtt
+        ]
+;        show (word " d > 0 --- ncontent " ncontent " id " [contentId] of ncontent " visited " visitedContents " baseAtt " baseAtt  " att  " att  )
+      ]
+
+
+    ]
+  ]
+
+  ;; in case nobody, head to one that's not visited
+  if headToContent = nobody [
+    foreach sort(nearbyContents) [
+      nearCont ->
+
+      if position ([contentId] of nearCont) visitedContents = false [
+       set headToContent nearCont
+      ]
+    ]
+
+  ]
+
+
+;  show (word "Curr. "  [contentId] of patch-here " Content: " [name] of headToContent " " headToContent )
+  report headToContent
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
-302
+303
 10
-710
+711
 419
 -1
 -1
@@ -771,11 +704,11 @@ GRAPHICS-WINDOW
 39
 0
 39
-1
-1
+0
+0
 1
 ticks
-30.0
+120.0
 
 BUTTON
 19
@@ -794,17 +727,6 @@ NIL
 NIL
 1
 
-INPUTBOX
-18
-421
-84
-481
-age
-NIL
-1
-0
-String
-
 SLIDER
 19
 100
@@ -814,7 +736,7 @@ influenceLevel
 influenceLevel
 0
 1
-0.4
+0.0
 0.1
 1
 NIL
@@ -829,7 +751,7 @@ averageInteractionInterval
 averageInteractionInterval
 0
 300
-29.0
+17.0
 1
 1
 NIL
@@ -860,8 +782,8 @@ SLIDER
 interestLevel
 interestLevel
 0
-100
-10.0
+10
+3.0
 1
 1
 NIL
@@ -876,7 +798,7 @@ visionDegreeLimit
 visionDegreeLimit
 0
 180
-44.0
+49.0
 1
 1
 NIL
@@ -891,7 +813,7 @@ visionDistanceLimit
 visionDistanceLimit
 0
 100
-25.0
+21.0
 1
 1
 NIL
@@ -906,7 +828,7 @@ visitedDiscountFactor
 visitedDiscountFactor
 0
 1
-1.0
+0.981
 0.001
 1
 NIL
@@ -921,7 +843,7 @@ attractivenessMeanLevel
 attractivenessMeanLevel
 0
 100
-26.0
+20.0
 1
 1
 NIL
@@ -938,16 +860,6 @@ exited
 1
 11
 
-CHOOSER
-19
-279
-191
-324
-escolaridade
-escolaridade
-"Básico" "Superior" "Especialização"
-0
-
 SLIDER
 19
 65
@@ -957,7 +869,7 @@ numberOfVisitors
 numberOfVisitors
 1
 100
-20.0
+9.0
 1
 1
 NIL
@@ -973,6 +885,106 @@ visitorsTotal
 0
 1
 11
+
+INPUTBOX
+21
+579
+176
+639
+showPathOfVisitor
+570.0
+1
+0
+Number
+
+SWITCH
+24
+541
+180
+574
+drawPathOfVisitor
+drawPathOfVisitor
+0
+1
+-1000
+
+PLOT
+219
+500
+419
+650
+Gráfico
+ticks
+Qtd
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"Andando" 1.0 0 -5987164 true "" "walking"
+"Interagindo" 1.0 0 -8330359 true "" "interacting"
+"Saiu" 1.0 0 -408670 true "" "ask patches with [isExit] [\n    set exited (exited + count turtles-here)\n  ]"
+
+MONITOR
+216
+175
+297
+220
+Caminhando
+walking
+0
+1
+11
+
+MONITOR
+202
+238
+306
+283
+Mover p/ Objeto
+count visitors with [movingToContent]
+0
+1
+11
+
+MONITOR
+205
+294
+283
+339
+Interagindo
+interacting
+0
+1
+11
+
+CHOOSER
+19
+279
+191
+324
+escolaridade
+escolaridade
+"Básico" "Superior" "Especialização"
+0
+
+SLIDER
+19
+396
+191
+429
+meanAge
+meanAge
+3
+80
+20.0
+2
+1
+anos
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
