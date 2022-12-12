@@ -1,6 +1,6 @@
 extensions [array csv]
 
-globals [contentsList contentsListName contentsListCategory contentsListSubjects contentsListTypeOfInteractions walking interacting exited]
+globals [visitorsTotal contentsList contentsListName contentsListCategory contentsListSubjects contentsListTypeOfInteractions walking interacting exited]
 
 breed [walls wall]
 
@@ -285,6 +285,7 @@ end
 ;;;;;;;;;;;;;;;;;
 to setup
  clear-all
+ set visitorsTotal 0
 
  loadContents
 
@@ -316,7 +317,6 @@ to setup
 ;    ]
 
 
-
     ;; set random interest  for each visitor
 ;    let dev (random attractivenessMeanLevel  - (attractivenessMeanLevel / 2))
 ;    set attractiveness attractivenessMeanLevel + dev
@@ -333,26 +333,32 @@ to setup
 ;
 ;  ]
 
-  ;; create visitors
-  create-visitors 10 [
-    set shape "person"
+;  ;; create visitors
+;  create-visitors numberOfVisitors [
+;    set shape "person"
+;    move-to one-of patches with [isEntrance]
+;  ]
+;
+;  ;; set common visitors state
+;  ask visitors [
+;  ]
 
-    move-to one-of patches with [isEntrance]
-;    set xcor random -10 + random 10
-;    set ycor random -10 + random 10
+  reset-ticks
+end
 
-    ;; create a link
-  ]
 
-  ;; set common visitors state
-  ask visitors [
-    ;; randomly setting a link to another visitor
+;;;;;;;;;;;;;;;;;;;;;;;;
+;;   CREATE VISITOR   ;;
+;;;;;;;;;;;;;;;;;;;;;;;;
+to createAndSetVisitor
+
+    ;; randomly setting a link to another visitor at entrance
     let createRandom random 100
     if createRandom < 20 [
-      let linkedVisitor [who] of (one-of visitors)
+      let linkedVisitor [who] of (one-of visitors-here)
       if linkedVisitor != [who] of self [
-        move-to visitor linkedVisitor
-        set xcor ([xcor] of visitor linkedVisitor ) ;;+ 0.5
+;        move-to visitor linkedVisitor
+        set ycor ([ycor] of visitor linkedVisitor )
         create-link-with visitor linkedVisitor [tie]
       ]
     ]
@@ -390,11 +396,8 @@ to setup
     set visitDuration 0
     set contentsInteractionDuration n-values length contentsListName [0]
 
-    set heading 90
-    changeDirection
-  ]
 
-  reset-ticks
+    changeDirection
 end
 
 
@@ -402,28 +405,43 @@ end
 ;;   GO LOOP   ;;
 ;;;;;;;;;;;;;;;;;
 to go
+  if visitorsTotal <  numberOfVisitors [
+    let entrancePatchesCount count patches with [isEntrance]
+    let visitorsPerPatch 3
+    ask patches with [isEntrance] [
+      if-else (numberOfVisitors - visitorsTotal) >= visitorsPerPatch [
+        sprout-visitors visitorsPerPatch [
+          createAndSetVisitor
+        ]
+        set visitorsTotal visitorsTotal + visitorsPerPatch
+      ][
+        if (numberOfVisitors - visitorsTotal) > 0 [
+          sprout-visitors numberOfVisitors - visitorsTotal [
+            createAndSetVisitor
+          ]
+          set visitorsTotal visitorsTotal + (numberOfVisitors - visitorsTotal)
+
+        ]
+      ]
+    ]
+  ]
+
+  ;; set common visitors state
   ask visitors [
-;    set heading heading + random -60 + random 60
-;    show word patch-ahead 1 " : "
-;    if [blocked] of patch-ahead 1 = false [
-;      fd 1
-;    ]
-;    if any? contents-on patch-ahead 1 [
-;;    if not [blocked] of patch-ahead 1 [
-;      fd 1
-;    ]
+  ]
+
+
+  ask visitors with [not [isExit] of patch-here ]  [
     setNearbyVisitorsAndContent
-;    whereToGo
-;    fd 1
-;    interactionStep
-    walk
     interactionControl
+    walk
     updateNextContentQueue
   ]
   set exited 0
   ask patches with [isExit] [
     set exited (exited + count turtles-here)
   ]
+  if exited >= numberOfVisitors [ stop ]
   tick
 end
 
@@ -479,15 +497,10 @@ end
 ;;   NEARBY    ;;
 ;;;;;;;;;;;;;;;;;
 to setNearbyVisitorsAndContent
-;  set nearbyVisitors other visitors in-radius visionDistance
-;  set nearbyContents contents in-radius visionDistance
 
   set nearbyVisitors other visitors in-radius visionDistance
   let nearbyContentsList (list)
 
-
-
-;  set inradiusContent inradiusContent with [ member? name contentsListName]
   let inradiusContent patches in-radius visionDistance
   set inradiusContent inradiusContent with [member? name contentsListName]
 
@@ -529,20 +542,19 @@ to interactionControl
 
   if-else isInteracting [
 ;    show (word "t " ticks " start " interactionStart " exp " contentExpectedTime )
-    if ticks - interactionStart >= contentExpectedTime [
+    if (ticks - interactionStart) >= contentExpectedTime [
       let pos (position (last visitedContents) contentsListName)
       let tempCount item pos contentsInteractionDuration
       set contentsInteractionDuration replace-item pos contentsInteractionDuration (ticks - interactionStart + tempCount)
       set isInteracting false
+      set interactionStart 0
     ]
   ][
-    if any? nearbyContents [
-      let nearestContent min-one-of nearbyContents [distance myself]
-      if ([distance myself] of nearestContent) <= 1 [
+    if not member? [contentId] of patch-here [-1 99 11 0 ""] [
         set interactionStart ticks
         set isInteracting true
-        set visitedContents lput [name] of nearestContent visitedContents ;; adds a content's name at the end of the list
-      ]
+
+        set visitedContents lput [name] of patch-here visitedContents ;; adds a content's name at the end of the list
     ]
   ]
 end
@@ -553,6 +565,7 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 to-report contentExpectedTime
   if [name] of patch-here = ""[
+
     report 0
   ]
   let boost 0
@@ -652,11 +665,6 @@ end
 to updateNextContentQueue
 
 end
-
-
-
-
-
 
 
 ;to whereToGo
@@ -763,8 +771,8 @@ GRAPHICS-WINDOW
 39
 0
 39
-0
-0
+1
+1
 1
 ticks
 30.0
@@ -787,10 +795,10 @@ NIL
 1
 
 INPUTBOX
-174
 18
-240
-78
+421
+84
+481
 age
 NIL
 1
@@ -798,10 +806,10 @@ NIL
 String
 
 SLIDER
-105
-92
-277
-125
+19
+100
+191
+133
 influenceLevel
 influenceLevel
 0
@@ -813,15 +821,15 @@ NIL
 HORIZONTAL
 
 SLIDER
-105
-128
-277
-161
+19
+136
+191
+169
 averageInteractionInterval
 averageInteractionInterval
 0
 300
-96.0
+29.0
 1
 1
 NIL
@@ -845,55 +853,55 @@ NIL
 1
 
 SLIDER
-105
-164
-277
-197
+19
+172
+191
+205
 interestLevel
 interestLevel
 0
 100
-11.0
+10.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-105
-200
-277
-233
+19
+208
+191
+241
 visionDegreeLimit
 visionDegreeLimit
 0
 180
-28.0
+44.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-105
-236
+19
+244
+191
 277
-269
 visionDistanceLimit
 visionDistanceLimit
 0
 100
-12.0
+25.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-105
-317
-277
-350
+19
+325
+191
+358
 visitedDiscountFactor
 visitedDiscountFactor
 0
@@ -905,58 +913,25 @@ NIL
 HORIZONTAL
 
 SLIDER
-105
-353
-278
-386
+19
+361
+192
+394
 attractivenessMeanLevel
 attractivenessMeanLevel
 0
 100
-11.0
+26.0
 1
 1
 NIL
 HORIZONTAL
 
-INPUTBOX
-0
-566
-293
-626
-ListOfSubjects
-NIL
-1
-0
-String
-
-INPUTBOX
-0
-632
-293
-692
-ListOfInteractions
-NIL
-1
-0
-String
-
-INPUTBOX
-0
-697
-294
-757
-ListOfKnowledgeDegree
-NIL
-1
-0
-String
-
 MONITOR
-19
-91
-89
-136
+213
+66
+283
+111
 Saíram
 exited
 0
@@ -964,14 +939,40 @@ exited
 11
 
 CHOOSER
-105
-271
-277
-316
+19
+279
+191
+324
 escolaridade
 escolaridade
 "Básico" "Superior" "Especialização"
 0
+
+SLIDER
+19
+65
+191
+98
+numberOfVisitors
+numberOfVisitors
+1
+100
+20.0
+1
+1
+NIL
+HORIZONTAL
+
+MONITOR
+213
+116
+283
+161
+Entraram
+visitorsTotal
+0
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
