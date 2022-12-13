@@ -150,7 +150,13 @@ to drawMap
  let scale world-width / 20
 ; show  scale
  let rowCounter 19
- foreach (csv:from-file "agentes.CSV" ";") [
+
+ let f "agentes.csv"
+ if fileName != "" [
+    set f fileName
+    show f
+ ]
+ foreach (csv:from-file f ";") [
     row ->
 ;      show row
       let columnCounter 0
@@ -369,9 +375,6 @@ end
 to walk
   let step 1
   if-else [isExit] of patch-here [
-    if visitDuration = 0 [
-      set visitDuration ticks
-    ]
     set step 0
   ][
 
@@ -396,6 +399,11 @@ to walk
 
   ;; add a step
   fd step
+
+  ;; save time in case has reached the end
+  if [isExit] of patch-here  [
+    set visitDuration ticks
+  ]
 
   ;; control the path drawing of selected visitor
   if (any? visitors with [ pen-mode = "down"]) and (not drawPathOfVisitor) [
@@ -572,23 +580,27 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 to printAllStats
-  foreach contentsListName [ c ->
-    show (word "" c " " item (position c contentsListName) percentageOfVisit " %")
-  ]
-
+  show "--- % Percentuais de Visitação ---"
+  foreach contentsListName [ c -> show (word "" c " " item (position c contentsListName) percentageOfVisit " %")]
   show (word "Média % de visitação das exposições: " mean percentageOfVisit " %")
+  show "==="
+
+  show "--- Tempo médio (ticks) de interação dos usuários por exposição ---"
+  foreach contentsListName [ c -> show (word "" c " " item (position c contentsListName) averageTimeSpentOnExhibits " ticks")]
+  show (word "Tempo Médio (ticks) de visitação das exposições: " mean averageTimeSpentOnExhibits " ticks")
+  show "==="
+
+  show "--- Tempo médio (ticks) de duração total da visitação do espaço ---"
+  show (word "Tempo Médio de visitação: " averageVisitTime " ticks")
+
 end
 
 
 
 ;; calc the percentage of visitors that interacted with the exhibitions
 to-report percentageOfVisit
-
   let contentsVisitPercs n-values length contentsListName [0]
-
-;  numberOfVisitors
   ask visitors [
-
     let index 0
     while [index < length contentsInteractionDuration ]  [
       if (item index contentsInteractionDuration) > 0 [
@@ -599,41 +611,33 @@ to-report percentageOfVisit
       set index index + 1
     ]
   ]
-;  show contentsVisitPercs
-
   report contentsVisitPercs
 end
 
 ;; calc the average visit time of visitors
 to-report averageVisitTime
-
-
-;  ask visitors [
-;    visitDuration
-;
-;  ]
-  report 0
+  let meanVisitTotalTime 0
+  ask visitors [
+    set meanVisitTotalTime meanVisitTotalTime + (visitDuration / numberOfVisitors )
+  ]
+  report meanVisitTotalTime
 end
 
-;; time spent on exhibit
-to-report timeSpentOnExhibt [exhibtName]
-
-  ;; get attractiveness from contentsListAttractiveness
-;  let pos (position [name] of ncontent contentsListName)
-
+;; calc the average time of interaction of visitors by Content Exhibt
+to-report averageTimeSpentOnExhibits
+  let averageTimeSpent n-values length contentsListName [0]
   ask visitors [
-;    visitDuration
-;    contentsInteractionDuration
-  ]
-  report 0
-end
+    let index 0
+    while [index < length contentsInteractionDuration ]  [
 
-;; calc the average time of interaction of visitors
-to-report averageTimeSpentOnExhibt [exhibtName]
-  ask visitors [
-;    contentsInteractionDuration
+      let actualValue (item index averageTimeSpent)
+      let updateValue actualValue + (item index contentsInteractionDuration) / numberOfVisitors
+      set averageTimeSpent replace-item index averageTimeSpent updateValue
+
+      set index index + 1
+    ]
   ]
-  report 0
+  report averageTimeSpent
 end
 
 
@@ -812,7 +816,7 @@ influenceLevel
 influenceLevel
 0.1
 1
-0.9
+0.4
 0.1
 1
 NIL
@@ -827,7 +831,7 @@ averageInteractionInterval
 averageInteractionInterval
 10
 300
-47.0
+16.0
 1
 1
 NIL
@@ -859,7 +863,7 @@ interestLevel
 interestLevel
 1
 10
-8.0
+1.0
 1
 1
 NIL
@@ -874,7 +878,7 @@ visionDistanceLimit
 visionDistanceLimit
 0
 100
-21.0
+20.0
 1
 1
 NIL
@@ -889,7 +893,7 @@ visitedDiscountFactor
 visitedDiscountFactor
 0
 1
-0.981
+1.0
 0.001
 1
 NIL
@@ -904,7 +908,7 @@ attractivenessMeanLevel
 attractivenessMeanLevel
 0
 100
-20.0
+23.0
 1
 1
 NIL
@@ -930,7 +934,7 @@ numberOfVisitors
 numberOfVisitors
 1
 100
-24.0
+19.0
 1
 1
 NIL
@@ -948,10 +952,10 @@ visitorsTotal
 11
 
 INPUTBOX
-70
-354
-225
-414
+137
+351
+292
+411
 showPathOfVisitor
 540.0
 1
@@ -959,10 +963,10 @@ showPathOfVisitor
 Number
 
 SWITCH
-69
-315
-225
-348
+136
+312
+292
+345
 drawPathOfVisitor
 drawPathOfVisitor
 1
@@ -1050,10 +1054,10 @@ NIL
 0.0
 20.0
 true
-true
+false
 "" ""
 PENS
-"default" 1.0 1 -13791810 true "\n" "histogram [visitorAge] of visitors"
+"Idade" 1.0 1 -13791810 true "\n" "histogram [visitorAge] of visitors"
 
 SLIDER
 148
@@ -1064,7 +1068,7 @@ scholarshipLevel
 scholarshipLevel
 1
 3
-3.0
+1.0
 1
 1
 NIL
@@ -1104,6 +1108,54 @@ NIL
 NIL
 NIL
 1
+
+PLOT
+7
+441
+407
+561
+Distribuição do Tempo Médio (ticks) de interação pelos visitantes
+NIL
+NIL
+0.0
+1000.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 100.0 1 -16777216 true "" "histogram averageTimeSpentOnExhibits"
+
+PLOT
+7
+565
+207
+715
+Médias de tempo
+NIL
+Média em Ticks
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"Visitação" 1.0 0 -5825686 true "" "plot averageVisitTime"
+"Por Conteúdo" 1.0 0 -14439633 true "" "plot mean averageTimeSpentOnExhibits"
+
+INPUTBOX
+9
+329
+127
+389
+fileName
+agentes_sem_parede.csv
+1
+0
+String
 
 @#$#@#$#@
 ## WHAT IS IT?
