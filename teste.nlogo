@@ -235,13 +235,9 @@ end
 to setup
  clear-all
  set visitorsTotal 0
-
  loadContents
-
  drawMap
-
-
-  reset-ticks
+ reset-ticks
 end
 
 
@@ -358,7 +354,10 @@ to go
   ask patches with [isExit] [
     set exited (exited + count turtles-here)
   ]
-  if exited >= numberOfVisitors [ stop ]
+  if exited >= numberOfVisitors [
+    printAllStats
+    stop
+  ]
 
   tick
 end
@@ -566,37 +565,84 @@ to-report interactionBoostFactor
 end
 
 
-;; time spent
-to-report timeSpent
-  report 0
-end
 
 
-;; time spent on exhibit
-to-report timeSpentOnExhibt [exhibt]
-  report 0
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;                        STATISTICS                         ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to printAllStats
+  foreach contentsListName [ c ->
+    show (word "" c " " item (position c contentsListName) percentageOfVisit " %")
+  ]
 end
+
 
 ;; calc the mean percentage of exhibits visited by all visitors
 to-report percentageOfVisit
+
+  let contentsVisitPercs n-values length contentsListName [0]
+
+;  numberOfVisitors
+  ask visitors [
+
+    let index 0
+    while [index < length contentsInteractionDuration ]  [
+      if (item index contentsInteractionDuration) > 0 [
+        let actualVisitValue (item index contentsVisitPercs)
+        let updateValue actualVisitValue + 100 * 1 / numberOfVisitors
+        set contentsVisitPercs replace-item index contentsVisitPercs updateValue
+      ]
+      set index index + 1
+    ]
+  ]
+;  show contentsVisitPercs
+
+  report contentsVisitPercs
+end
+
+;; calc the average visit time of visitors
+to-report averageVisitTime
+
+
+;  ask visitors [
+;    visitDuration
+;
+;  ]
   report 0
 end
 
-;; calc the average time of visitors
-to-report averageVisitTime
+;; time spent on exhibit
+to-report timeSpentOnExhibt [exhibtName]
+
+  ;; get attractiveness from contentsListAttractiveness
+;  let pos (position [name] of ncontent contentsListName)
+
+  ask visitors [
+;    visitDuration
+;    contentsInteractionDuration
+  ]
   report 0
 end
 
 ;; calc the average time of interaction of visitors
-to-report averageTimeSpentOnExhibt [exhibt]
+to-report averageTimeSpentOnExhibt [exhibtName]
+  ask visitors [
+;    contentsInteractionDuration
+  ]
   report 0
 end
 
 
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;         WHERE TO GO BASED UPON ON ATTRACTIVENESS          ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 to whereToGo
   if-else isInteracting  [
-    show "strange"
-;    fd 1
     ;; do nothing
   ][
     if-else movingToContent [
@@ -735,13 +781,13 @@ GRAPHICS-WINDOW
 0
 1
 ticks
-120.0
+60.0
 
 BUTTON
-19
-30
-82
-63
+24
+10
+87
+43
 NIL
 setup
 NIL
@@ -756,24 +802,24 @@ NIL
 
 SLIDER
 19
-100
-191
-133
+142
+135
+175
 influenceLevel
 influenceLevel
 0.1
 1
-1.0
+0.9
 0.1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-19
-136
-191
-169
+61
+217
+233
+250
 averageInteractionInterval
 averageInteractionInterval
 10
@@ -785,10 +831,10 @@ NIL
 HORIZONTAL
 
 BUTTON
-92
-30
-155
-63
+97
+10
+160
+43
 NIL
 go
 T
@@ -802,10 +848,10 @@ NIL
 1
 
 SLIDER
-19
-172
-191
-205
+148
+106
+275
+139
 interestLevel
 interestLevel
 1
@@ -817,10 +863,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-19
-244
-191
-277
+148
+70
+275
+103
 visionDistanceLimit
 visionDistanceLimit
 0
@@ -832,10 +878,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-19
-325
-191
-358
+61
+181
+233
+214
 visitedDiscountFactor
 visitedDiscountFactor
 0
@@ -847,10 +893,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-19
-361
-192
-394
+60
+255
+233
+288
 attractivenessMeanLevel
 attractivenessMeanLevel
 0
@@ -862,10 +908,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-213
-66
-283
-111
+729
+11
+799
+56
 Saíram
 exited
 0
@@ -874,24 +920,24 @@ exited
 
 SLIDER
 19
-65
-191
-98
+71
+135
+104
 numberOfVisitors
 numberOfVisitors
 1
 100
-9.0
+24.0
 1
 1
 NIL
 HORIZONTAL
 
 MONITOR
-213
-116
-283
-161
+729
+61
+799
+106
 Entraram
 visitorsTotal
 0
@@ -899,10 +945,10 @@ visitorsTotal
 11
 
 INPUTBOX
-21
-579
-176
-639
+70
+354
+225
+414
 showPathOfVisitor
 540.0
 1
@@ -910,10 +956,10 @@ showPathOfVisitor
 Number
 
 SWITCH
-24
-541
-180
-574
+69
+315
+225
+348
 drawPathOfVisitor
 drawPathOfVisitor
 1
@@ -921,10 +967,10 @@ drawPathOfVisitor
 -1000
 
 PLOT
-219
-500
-419
-650
+412
+563
+612
+713
 Gráfico
 ticks
 Qtd
@@ -941,10 +987,10 @@ PENS
 "Saiu" 1.0 0 -408670 true "" "plot exited"
 
 MONITOR
-216
-175
-297
-220
+728
+120
+809
+165
 Caminhando
 walking
 0
@@ -952,10 +998,10 @@ walking
 11
 
 MONITOR
-202
-238
-306
-283
+726
+182
+810
+227
 Mover p/ Objeto
 count visitors with [movingToContent]
 0
@@ -963,10 +1009,10 @@ count visitors with [movingToContent]
 11
 
 MONITOR
-205
-294
+728
+238
+806
 283
-339
 Interagindo
 interacting
 0
@@ -975,9 +1021,9 @@ interacting
 
 SLIDER
 19
-396
-191
-429
+106
+135
+139
 meanAge
 meanAge
 3
@@ -989,28 +1035,28 @@ anos
 HORIZONTAL
 
 PLOT
-451
-447
-651
-597
-Histogram
+616
+561
+816
+711
+Histograma - Idade
 NIL
 NIL
 0.0
-30.0
+20.0
 0.0
-30.0
+20.0
 true
-false
+true
 "" ""
 PENS
-"default" 1.0 0 -13791810 true "\n" "histogram (list mean ( [contentsInteractionDuration] of visitors))"
+"default" 1.0 1 -13791810 true "\n" "histogram [visitorAge] of visitors"
 
 SLIDER
-19
-284
-191
-317
+148
+140
+277
+173
 scholarshipLevel
 scholarshipLevel
 1
@@ -1020,6 +1066,41 @@ scholarshipLevel
 1
 NIL
 HORIZONTAL
+
+PLOT
+411
+441
+815
+561
+Histograma % visita de cada conteúdo expo
+NIL
+NIL
+0.0
+100.0
+0.0
+15.0
+false
+false
+"" ""
+PENS
+"default" 10.0 1 -16777216 true "" "histogram percentageOfVisit"
+
+BUTTON
+175
+10
+273
+43
+NIL
+printAllStats
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
