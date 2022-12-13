@@ -575,10 +575,13 @@ to printAllStats
   foreach contentsListName [ c ->
     show (word "" c " " item (position c contentsListName) percentageOfVisit " %")
   ]
+
+  show (word "Média % de visitação das exposições: " mean percentageOfVisit " %")
 end
 
 
-;; calc the mean percentage of exhibits visited by all visitors
+
+;; calc the percentage of visitors that interacted with the exhibitions
 to-report percentageOfVisit
 
   let contentsVisitPercs n-values length contentsListName [0]
