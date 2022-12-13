@@ -12,8 +12,6 @@ globals [
   interacting
   exited]
 
-breed [walls wall]
-
 ;; the exhibt content breed
 breed [contents content]
 
@@ -24,10 +22,9 @@ visitors-own[
   mostInterestSubject
   mostInterestCategory
   mostInterestTypeOfInteraction
-  education
+  scholarship
   influence
   visionDistance
-  visionDegree
   interactionInterval
   isInteracting
   movingToContent
@@ -108,7 +105,7 @@ end
 to-report getContentMatchTagValue[nameValue tag]
   let match  false
   let i 0
-  while [ match = False and i <= length contentsList] [
+  while [ match = False and i < length contentsList] [
     let c item i contentsList
 
     let nameOfContent item 0 c
@@ -175,7 +172,6 @@ to drawMap
 
               if-else cellValue = -1 [
                 ask patch x y [set isBlocked true]
-                create-walls 1 [ setxy x y hide-turtle]
               ][
 
                  if-else cellValue = 11 [
@@ -268,22 +264,21 @@ to createAndSetVisitor
 
 ;    set shape "person"
 
-    set education escolaridade
+    set scholarship scholarshipLevel
     set visionDistance visionDistanceLimit
-    set visionDegree visionDegreeLimit
     set isInteracting false
     set interactionContent nobody
 
     ;; set random interval of interaction for each visitor
-    let dev  (random 30  - (30 / 2))
+    let dev  (random averageInteractionInterval  - (averageInteractionInterval / 2))
     set interactionInterval averageInteractionInterval + dev
 
     ;; set random interest  for each visitor
-    set dev (random 10  - (10 / 2)) / 10
+    set dev (random interestLevel  - (interestLevel / 2)) / interestLevel
     set interest interestLevel + dev
 
     ;; set random age for each visitor
-    set dev (random 10  - (10 / 2)) / 10
+    set dev (random meanAge  - (meanAge / 2))
     set visitorAge meanAge + dev
 
     ;; random interests to score time of interaction
@@ -292,8 +287,13 @@ to createAndSetVisitor
     set mostInterestTypeOfInteraction one-of remove-duplicates  contentsListTypeOfInteractions
 
     ;; set random influence for each visitor
-    set dev (random 15  - (15 / 2)) / 15
-    set influence influenceLevel + dev
+    set dev (random influenceLevel  - (influenceLevel / 2)) / influenceLevel
+    if-else influenceLevel + dev > 1 [
+      set influence 1
+    ][
+      set influence influenceLevel + dev
+    ]
+
 
     ;; set visitedContents
     set visitedContents []
@@ -516,12 +516,28 @@ to-report contentExpectedTime
 end
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;  CALCULATES THE BOOST RATE FOR THE CONTENT   ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-to-report interactionBoostFactor
-    if [name] of patch-here = ""[
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;    CALCULATES THE BOOST RATE BY OTHERS' INFLUENCE    ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+to-report interactionInfluenceFactor [ contentName ]
+  if count nearbyVisitors = 0 [
+    report 1
+  ]
+  let boost 0
 
+  let visitorsNearbyTotal count nearbyVisitors
+  let qtty count nearbyVisitors with [[name] of patch-here  = contentName ]
+;  show influence * (visitorsNearbyTotal - qtty) / visitorsNearbyTotal
+  report influence * (1 + (visitorsNearbyTotal - qtty) / visitorsNearbyTotal)
+end
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;     CALCULATES THE BOOST DONE BY THE CONTENT     ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+to-report interactionBoostFactor
+  if [name] of patch-here = "" or [name] of patch-here = 0 [
     report 0
   ]
   let boost 0
@@ -536,8 +552,19 @@ to-report interactionBoostFactor
     set boost boost + 0.3
   ]
 
+  if (getContentMatchTagValue [name] of patch-here "knowledge")  > scholarship [
+    set boost boost - 0.2
+  ]
+  if (getContentMatchTagValue [name] of patch-here "complexity") > ( scholarship + visitorAge / 7) / 2  [
+    set boost boost - 0.3
+  ]
+  if (getContentMatchTagValue [name] of patch-here "strength_level") > visitorAge / 7 [
+    set boost boost - 0.1
+  ]
+
   report 1 + boost
 end
+
 
 ;; time spent
 to-report timeSpent
@@ -618,7 +645,7 @@ to-report attractiveContent [x y]
       let pos (position [name] of ncontent contentsListName)
 ;      show (word pos " " [name] of ncontent " " contentsListName )
       let baseAtt item pos contentsListAttractiveness
-      set baseAtt baseAtt * interactionBoostFactor
+      set baseAtt baseAtt * interactionBoostFactor * (interactionInfluenceFactor [name] of ncontent)
 
 ;      show [distancexy x y] of ncontent
       ifelse ([distancexy x y] of ncontent) = 0 [ ;; was using 'distance self' before
@@ -734,9 +761,9 @@ SLIDER
 133
 influenceLevel
 influenceLevel
-0
+0.1
 1
-0.0
+1.0
 0.1
 1
 NIL
@@ -749,9 +776,9 @@ SLIDER
 169
 averageInteractionInterval
 averageInteractionInterval
-0
+10
 300
-17.0
+47.0
 1
 1
 NIL
@@ -781,24 +808,9 @@ SLIDER
 205
 interestLevel
 interestLevel
-0
+1
 10
-3.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-19
-208
-191
-241
-visionDegreeLimit
-visionDegreeLimit
-0
-180
-49.0
+8.0
 1
 1
 NIL
@@ -892,7 +904,7 @@ INPUTBOX
 176
 639
 showPathOfVisitor
-570.0
+540.0
 1
 0
 Number
@@ -904,7 +916,7 @@ SWITCH
 574
 drawPathOfVisitor
 drawPathOfVisitor
-0
+1
 1
 -1000
 
@@ -924,9 +936,9 @@ true
 false
 "" ""
 PENS
-"Andando" 1.0 0 -5987164 true "" "walking"
-"Interagindo" 1.0 0 -8330359 true "" "interacting"
-"Saiu" 1.0 0 -408670 true "" "ask patches with [isExit] [\n    set exited (exited + count turtles-here)\n  ]"
+"Andando" 1.0 0 -5987164 true "" "plot walking"
+"Interagindo" 1.0 0 -8330359 true "" "plot interacting"
+"Saiu" 1.0 0 -408670 true "" "plot exited"
 
 MONITOR
 216
@@ -961,16 +973,6 @@ interacting
 1
 11
 
-CHOOSER
-19
-279
-191
-324
-escolaridade
-escolaridade
-"Básico" "Superior" "Especialização"
-0
-
 SLIDER
 19
 396
@@ -984,6 +986,39 @@ meanAge
 2
 1
 anos
+HORIZONTAL
+
+PLOT
+451
+447
+651
+597
+Histogram
+NIL
+NIL
+0.0
+30.0
+0.0
+30.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -13791810 true "\n" "histogram (list mean ( [contentsInteractionDuration] of visitors))"
+
+SLIDER
+19
+284
+191
+317
+scholarshipLevel
+scholarshipLevel
+1
+3
+3.0
+1
+1
+NIL
 HORIZONTAL
 
 @#$#@#$#@
